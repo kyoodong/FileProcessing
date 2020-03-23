@@ -10,7 +10,7 @@
 #define LIMIT 1024 * 1024
 
 int main(int argc, char* argv[]) {
-	char filename[512];
+	char* filename;
 	int offset;
 	int numOfReadingBytes;
 	int fd;
@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	strcpy(filename, argv[1]);
+	filename = argv[1];
 	if ((fd = open(filename, O_RDONLY)) < 0) {
 		fprintf(stderr, "Cannot open %s\n", filename);
 		return 1;

@@ -7,8 +7,8 @@
 #include <string.h>
 
 int main(int argc, char* argv[]) {
-	char filename1[512];
-	char filename2[512];
+	char* filename1;
+	char* filename2;
 	int fd1, fd2;
 	int size;
 	char buffer[1024];
@@ -18,8 +18,8 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	strcpy(filename1, argv[1]);
-	strcpy(filename2, argv[2]);
+	filename1 = argv[1];
+	filename2 = argv[2];
 
 	if ((fd1 = open(filename1, O_RDONLY)) < 0) {
 		fprintf(stderr, "Cannot open %s\n", filename1);

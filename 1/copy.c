@@ -7,7 +7,7 @@
 #include <string.h>
 
 int main(int argc, char* argv[]) {
-	char readFilename[512], writeFilename[512];
+	char* readFilename, *writeFilename;
 	char buffer[110];
 	int readfd, writefd;
 	int size;
@@ -18,14 +18,14 @@ int main(int argc, char* argv[]) {
 	}
 
 	memset(buffer, 0, sizeof(buffer));
-	strcpy(readFilename, argv[1]);
+	readFilename = argv[1];
+	writeFilename = argv[2];
 
 	if ((readfd = open(readFilename, O_RDONLY)) < 0) {
 		fprintf(stderr, "Cannot open %s\n", readFilename);
 		return 1;
 	}
 
-	strcpy(writeFilename, argv[2]);
 	if ((writefd = open(writeFilename, O_RDWR | O_CREAT | O_TRUNC, 0666)) < 0) {
 		fprintf(stderr, "Cannot open %s\n", writeFilename);
 		return 1;
