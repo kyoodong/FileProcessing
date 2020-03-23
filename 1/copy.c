@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
 	int size;
 
 	if (argc != 3) {
-		fprintf(stderr, "Number of arguments must be 3.\n");
+		fprintf(stderr, "Number of arguments must be 2.\n");
 		return 1;
 	}
 
