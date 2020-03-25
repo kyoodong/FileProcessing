@@ -6,9 +6,11 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#define BUF_LEN 1024
+
 int main(int argc, char* argv[]) {
 	char* readFilename, *writeFilename;
-	char buffer[110];
+	char buffer[BUF_LEN];
 	int readfd, writefd;
 	int size;
 
@@ -31,8 +33,8 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	while ((size = read(readfd, buffer, 100)) > 0) {
-		if (write(writefd, buffer, size) < size) {
+	while ((size = read(readfd, buffer, sizeof(buffer))) > 0) {
+		if (write(writefd, buffer, size) != size) {
 			fprintf(stderr, "Error occured while copying!\n");
 			return 1;
 		}

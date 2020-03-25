@@ -7,14 +7,20 @@
 #include <string.h>
 
 
-#define LIMIT 1024 * 1024
+#define BUF_LEN 10
+
+int min(int a, int b) {
+	if (a < b)
+		return a;
+	return b;
+}
 
 int main(int argc, char* argv[]) {
 	char* filename;
 	int offset;
 	int numOfReadingBytes;
 	int fd;
-	char buffer[LIMIT];
+	char buffer[BUF_LEN];
 	memset(buffer, 0, sizeof(buffer));
 
 	if (argc != 4) {
@@ -30,16 +36,24 @@ int main(int argc, char* argv[]) {
 
 	offset = atoi(argv[2]);
 	numOfReadingBytes = atoi(argv[3]);
-	if (numOfReadingBytes >= LIMIT) {
-		fprintf(stderr, "Reading bytes limitation is %d bytes.\n", LIMIT - 1);
+	if (numOfReadingBytes <= 0) {
+		fprintf(stderr, "Reading bytes must be positive number\n");
 		return 1;
 	}
 
 	lseek(fd, offset, SEEK_SET);
-	if (read(fd, buffer, numOfReadingBytes) < 0) {
-		fprintf(stderr, "Fail to read file\n");
-		return 1;
+	while (numOfReadingBytes > 0) {
+		int size = min(numOfReadingBytes, sizeof(buffer) - 1);
+		int n;
+		if ((n =read(fd, buffer, size)) < 0) {
+			fprintf(stderr, "Fail to read file\n");
+			return 1;
+		} else if (n == 0) {
+			break;
+		}
+		numOfReadingBytes -=size;
+		buffer[size] = '\0';
+		printf("%s", buffer);
 	}
-	printf("%s", buffer);
 	return 0;
 }
