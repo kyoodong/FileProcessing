@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define BUF_LEN 100
+#define BUF_LEN 1024
 
 int min(int a, int b) {
 	if (a < b)
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	if (offset >= fileSize)
+	if (offset >= fileSize || deletingBytes == 0)
 		return 0;
 
 	if (offset + deletingBytes >= fileSize) {

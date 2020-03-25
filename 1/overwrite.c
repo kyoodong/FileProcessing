@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
 	char* filename;
 	char* data;
 	int fd;
-	int length;
+	size_t length;
 
 	if (argc != 4) {
 		fprintf(stderr, "It need 3 arguments.\n");
@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 
 	lseek(fd, offset, SEEK_SET);
 	length = strlen(data);
-	if (write(fd, data, length) < length) {
+	if (write(fd, data, length) != length) {
 		fprintf(stderr, "Write error occured!\n");
 		return 1;
 	}

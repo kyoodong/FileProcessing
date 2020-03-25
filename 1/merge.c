@@ -6,12 +6,14 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#define BUF_LEN 1024
+
 int main(int argc, char* argv[]) {
 	char* filename1;
 	char* filename2;
 	int fd1, fd2;
 	int size;
-	char buffer[1024];
+	char buffer[BUF_LEN];
 
 	if (argc != 3) {
 		fprintf(stderr, "It need 2 arguments.\n");
@@ -31,7 +33,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	while ((size = read(fd2, buffer, 1024)) > 0) {
+	while ((size = read(fd2, buffer, BUF_LEN)) > 0) {
 		if (write(fd1, buffer, size) < size) {
 			fprintf(stderr, "Write error\n");
 			return 1;

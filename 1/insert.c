@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define BUF_LEN 10
+#define BUF_LEN 1024
 
 int min(int a, int b) {
 	if (a < b)

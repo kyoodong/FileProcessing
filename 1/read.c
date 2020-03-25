@@ -7,7 +7,7 @@
 #include <string.h>
 
 
-#define BUF_LEN 10
+#define BUF_LEN 1024
 
 int min(int a, int b) {
 	if (a < b)
@@ -51,9 +51,12 @@ int main(int argc, char* argv[]) {
 		} else if (n == 0) {
 			break;
 		}
-		numOfReadingBytes -=size;
-		buffer[size] = '\0';
-		printf("%s", buffer);
+		numOfReadingBytes -= n;
+		
+		if (write(1, buffer, n) < 0) {
+			fprintf(stderr, "write error\n");
+			return 1;
+		}
 	}
 	return 0;
 }
