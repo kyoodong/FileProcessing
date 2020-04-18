@@ -48,12 +48,12 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "%s open error\n", flashFile);
 			exit(1);
 		}
+		memset(pagebuf, 0xFF, sizeof(pagebuf));
 
 		for (int i = 0; i < blockNum; i++) {
 			for (int j = 0; j < PAGE_NUM; j++) {
-				dd_write(i * PAGE_NUM + j, pagebuf);
+				fwrite(pagebuf, sizeof(pagebuf), 1, flashfp);
 			}
-			dd_erase(i);
 		}
 	}
 
