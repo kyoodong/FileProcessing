@@ -79,5 +79,47 @@ int main(int argc, char *argv[])
 		dd_write(ppn, pagebuf);
 	}
 
+	else if (!strcmp(argv[1], "r")) {
+		if (argc != 4) {
+			fprintf(stderr, "usage : %s r <flashfile> <ppn>\n", argv[0]);
+			exit(1);
+		}
+
+		flashFile = argv[2];
+		ppn = atoi(argv[3]);
+
+		flashfp = fopen(flashFile, "r");
+		if (flashfp == NULL) {
+			fprintf(stderr, "%s open error\n", flashFile);
+			exit(1);
+		}
+
+		dd_read(ppn, pagebuf);
+		memcpy(sectorbuf, pagebuf, sizeof(sectorbuf));
+		memcpy(sparebuf, pagebuf + sizeof(sectorbuf), sizeof(sparebuf));
+
+		int sectorDataSize = sizeof(sectorbuf);
+		int spareDataSize = sizeof(sparebuf);
+		for (int i = 0; i < sizeof(sectorbuf); i++) {
+			if (sectorbuf[i] == -1) {
+				sectorDataSize = i;
+				break;
+			}
+		}
+
+		for (int i = 0; i < sizeof(sparebuf); i++) {
+			if (sparebuf[i] == -1) {
+				spareDataSize = i;
+				break;
+			}
+		}
+
+		if (sectorDataSize > 0 || spareDataSize > 0) {
+			write(1, sectorbuf, sectorDataSize);
+			write(1, " ", 1);
+			write(1, sparebuf, spareDataSize);
+		}
+	}
+
 	return 0;
 }
