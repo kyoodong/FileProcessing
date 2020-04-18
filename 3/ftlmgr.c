@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	char pagebuf[PAGE_SIZE];
 	char *blockbuf;
 	char *flashFile;
-	int blockNum, ppn;
+	int blockNum, ppn, pbn;
 	
 	// flash memory 파일 생성: 위에서 선언한 flashfp를 사용하여 flash 파일을 생성한다. 그 이유는 fdevicedriver.c에서 
 	//                 flashfp 파일포인터를 extern으로 선언하여 사용하기 때문이다.
@@ -119,6 +119,22 @@ int main(int argc, char *argv[])
 			write(1, " ", 1);
 			write(1, sparebuf, spareDataSize);
 		}
+	}
+
+	else if (!strcmp(argv[1], "e")) {
+		if (argc != 4) {
+			fprintf(stderr, "usage : %s w <flashfile> <ppn> <sectordat> <sparedata>\n", argv[0]);
+			exit(1);
+		}
+
+		flashFile = argv[2];
+		flashfp = fopen(flashFile, "r+");
+		if (flashfp == NULL) {
+			fprintf(stderr, "%s open error\n", flashFile);
+			exit(1);
+		}
+		pbn = atoi(argv[3]);
+		dd_erase(pbn);
 	}
 
 	return 0;
