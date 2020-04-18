@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "flash.h"
 // 필요한 경우 헤더파일을 추가한다
+
 int dd_read(int ppn, char *pagebuf);
 int dd_write(int ppn, char *pagebuf);
 int dd_erase(int pbn);
@@ -32,6 +33,11 @@ int main(int argc, char *argv[])
 	// 페이지 읽기: pagebuf를 인자로 사용하여 해당 인터페이스를 호출하여 페이지를 읽어 온 후 여기서 섹터 데이터와
 	//                  스페어 데이터를 분리해 낸다
 	// memset(), memcpy() 등의 함수를 이용하면 편리하다. 물론, 다른 방법으로 해결해도 무방하다.
+
+	if (argc == 1) {
+		fprintf(stderr, "usage : %s <option>\n", argv[0]);
+		exit(1);
+	}
 
 	if (!strcmp(argv[1], "c")) {
 		if (argc != 4) {
@@ -123,7 +129,7 @@ int main(int argc, char *argv[])
 
 	else if (!strcmp(argv[1], "e")) {
 		if (argc != 4) {
-			fprintf(stderr, "usage : %s w <flashfile> <ppn> <sectordat> <sparedata>\n", argv[0]);
+			fprintf(stderr, "usage : %s e <flashfile> <pbn>\n", argv[0]);
 			exit(1);
 		}
 
