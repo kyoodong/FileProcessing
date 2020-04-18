@@ -18,6 +18,8 @@ int main(int argc, char *argv[])
 	char sectorbuf[SECTOR_SIZE];
 	char pagebuf[PAGE_SIZE];
 	char *blockbuf;
+	char *flashFile;
+	int blockNum;
 	
 	// flash memory 파일 생성: 위에서 선언한 flashfp를 사용하여 flash 파일을 생성한다. 그 이유는 fdevicedriver.c에서 
 	//                 flashfp 파일포인터를 extern으로 선언하여 사용하기 때문이다.
@@ -25,6 +27,27 @@ int main(int argc, char *argv[])
 	// 페이지 읽기: pagebuf를 인자로 사용하여 해당 인터페이스를 호출하여 페이지를 읽어 온 후 여기서 섹터 데이터와
 	//                  스페어 데이터를 분리해 낸다
 	// memset(), memcpy() 등의 함수를 이용하면 편리하다. 물론, 다른 방법으로 해결해도 무방하다.
+
+	memset(pagebuf, 0, sizeof(pagebuf));
+
+	if (!strcmp(argv[1], "c")) {
+		flashFile = argv[2];
+		blockNum = atoi(argv[3]);
+
+		flashfp = fopen(flashFile, "w");
+
+		if (flashfp == NULL) {
+			fprintf(stderr, "%s open error\n", flashFile);
+			exit(1);
+		}
+
+		for (int i = 0; i < blockNum; i++) {
+			for (int j = 0; j < 4; j++) {
+				fwrite(pagebuf, sizeof(pagebuf), 1, flashfp);
+			}
+		}
+	}
+
 
 	return 0;
 }
