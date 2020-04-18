@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "flash.h"
 // 필요한 경우 헤더파일을 추가한다
+int dd_read(int ppn, char *pagebuf);
+int dd_write(int ppn, char *pagebuf);
+int dd_erase(int pbn);
 
 FILE *flashfp;	// fdevicedriver.c에서 사용
 
@@ -16,10 +20,11 @@ FILE *flashfp;	// fdevicedriver.c에서 사용
 int main(int argc, char *argv[])
 {	
 	char sectorbuf[SECTOR_SIZE];
+	char sparebuf[SPARE_SIZE];
 	char pagebuf[PAGE_SIZE];
 	char *blockbuf;
 	char *flashFile;
-	int blockNum;
+	int blockNum, ppn;
 	
 	// flash memory 파일 생성: 위에서 선언한 flashfp를 사용하여 flash 파일을 생성한다. 그 이유는 fdevicedriver.c에서 
 	//                 flashfp 파일포인터를 extern으로 선언하여 사용하기 때문이다.
@@ -28,9 +33,12 @@ int main(int argc, char *argv[])
 	//                  스페어 데이터를 분리해 낸다
 	// memset(), memcpy() 등의 함수를 이용하면 편리하다. 물론, 다른 방법으로 해결해도 무방하다.
 
-	memset(pagebuf, 0, sizeof(pagebuf));
-
 	if (!strcmp(argv[1], "c")) {
+		if (argc != 4) {
+			fprintf(stderr, "usage : %s c <flashfile> <block#>\n", argv[0]);
+			exit(1);
+		}
+
 		flashFile = argv[2];
 		blockNum = atoi(argv[3]);
 
@@ -42,12 +50,34 @@ int main(int argc, char *argv[])
 		}
 
 		for (int i = 0; i < blockNum; i++) {
-			for (int j = 0; j < 4; j++) {
-				fwrite(pagebuf, sizeof(pagebuf), 1, flashfp);
+			for (int j = 0; j < PAGE_NUM; j++) {
+				dd_write(i * PAGE_NUM + j, pagebuf);
 			}
+			dd_erase(i);
 		}
 	}
 
+	else if (!strcmp(argv[1], "w")) {
+		if (argc != 6) {
+			fprintf(stderr, "usage : %s w <flashfile> <ppn> <sectordat> <sparedata>\n", argv[0]);
+			exit(1);
+		}
+
+		flashFile = argv[2];
+		ppn = atoi(argv[3]);
+
+		flashfp = fopen(flashFile, "r+");
+		if (flashfp == NULL) {
+			fprintf(stderr, "%s open error\n", flashFile);
+			exit(1);
+		}
+
+		memset(pagebuf, 0xFF, sizeof(pagebuf));
+		memcpy(pagebuf, argv[4], strlen(argv[4]));
+		memcpy(pagebuf + SECTOR_SIZE, argv[5], strlen(argv[5]));
+
+		dd_write(ppn, pagebuf);
+	}
 
 	return 0;
 }
