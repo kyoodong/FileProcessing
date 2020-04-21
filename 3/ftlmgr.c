@@ -11,6 +11,45 @@ int dd_erase(int pbn);
 
 FILE *flashfp;	// fdevicedriver.c에서 사용
 
+int isEmptyPage(int ppn) {
+	char pagebuf[PAGE_SIZE];
+
+	dd_read(ppn, pagebuf);
+	for (int i = 0; i < PAGE_SIZE; i++) {
+		if (pagebuf[i] != -1)
+			return 0;
+	}
+	return 1;
+}
+
+int isEmptyBlock(int pbn) {
+	for (int i = 0; i < PAGE_NUM; i++) {
+		if (!isEmptyPage(pbn * PAGE_NUM + i))
+			return 0;
+	}
+	return 1;
+}
+
+int findEmptyBlock() {
+	int isFound = 0;
+	int i = 0;
+
+	while (1) {
+		if (isEmptyBlock(i))
+			return i;
+		i++;
+	}
+	return -1;
+}
+
+int getPbn(int ppn) {
+	return ppn / PAGE_NUM;
+}
+
+int min(int a, int b) {
+	return (a < b ? a : b);
+}
+
 //
 // 이 함수는 FTL의 역할 중 일부분을 수행하는데 물리적인 저장장치 flash memory에 Flash device driver를 이용하여 데이터를
 // 읽고 쓰거나 블록을 소거하는 일을 한다 (동영상 강의를 참조).
@@ -26,6 +65,7 @@ int main(int argc, char *argv[])
 	char *blockbuf;
 	char *flashFile;
 	int blockNum, ppn, pbn;
+	int sectorLength, spareLength;
 	
 	// flash memory 파일 생성: 위에서 선언한 flashfp를 사용하여 flash 파일을 생성한다. 그 이유는 fdevicedriver.c에서 
 	//                 flashfp 파일포인터를 extern으로 선언하여 사용하기 때문이다.
@@ -54,7 +94,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "%s open error\n", flashFile);
 			exit(1);
 		}
-		memset(pagebuf, 0xFF, sizeof(pagebuf));
+		memset(pagebuf, (char) 0xFF, sizeof(pagebuf));
 
 		for (int i = 0; i < blockNum; i++) {
 			for (int j = 0; j < PAGE_NUM; j++) {
@@ -78,11 +118,52 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		memset(pagebuf, 0xFF, sizeof(pagebuf));
-		memcpy(pagebuf, argv[4], strlen(argv[4]));
-		memcpy(pagebuf + SECTOR_SIZE, argv[5], strlen(argv[5]));
+		sectorLength = min(SECTOR_SIZE, strlen(argv[4]));
+		spareLength = min(SPARE_SIZE, strlen(argv[5]));
 
-		dd_write(ppn, pagebuf);
+		// 빈 페이지에 쓸 경우
+		if (isEmptyPage(ppn)) {
+			memset(pagebuf, (char) 0xFF, sizeof(pagebuf));
+			memcpy(pagebuf, argv[4], sectorLength);
+			memcpy(pagebuf + SECTOR_SIZE, argv[5], spareLength);
+
+			dd_write(ppn, pagebuf);
+		}
+
+		// overwrite 인 경우
+		else {
+			int emptyPbn = findEmptyBlock();
+			int originPbn = getPbn(ppn);
+
+			// 빈 블럭에 복사
+			for (int i = 0; i < PAGE_NUM; i++) {
+				// 원래 쓰려고 했던 자리의 데이터는 복사하지 않음
+				if (originPbn * PAGE_NUM + i == ppn)
+					continue;
+
+				dd_read(originPbn * PAGE_NUM + i, pagebuf);
+				dd_write(emptyPbn * PAGE_NUM + i, pagebuf);
+			}
+
+			// 원래 블럭 초기화
+			dd_erase(originPbn);
+
+			// 원래 블럭으로 다시 돌려놓음
+			for (int i = 0; i < PAGE_NUM; i++) {
+				dd_read(emptyPbn * PAGE_NUM + i, pagebuf);
+				dd_write(originPbn * PAGE_NUM + i, pagebuf);
+			}
+
+			// 쓰기
+			memset(pagebuf, (char) 0xFF, sizeof(pagebuf));
+			memcpy(pagebuf, argv[4], sectorLength);
+			memcpy(pagebuf + SECTOR_SIZE, argv[5], spareLength);
+
+			dd_write(ppn, pagebuf);
+
+			// 빈블럭이였던 블럭은 다시 초기화
+			dd_erase(emptyPbn);
+		}
 	}
 
 	else if (!strcmp(argv[1], "r")) {
