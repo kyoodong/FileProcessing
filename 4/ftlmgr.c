@@ -10,6 +10,8 @@
 #include "sectormap.h"
 // 필요한 경우 헤더 파일을 추가하시오.
 
+FILE *flashfp;
+
 //
 // flash memory를 처음 사용할 때 필요한 초기화 작업, 예를 들면 address mapping table에 대한
 // 초기화 등의 작업을 수행한다. 따라서, 첫 번째 ftl_write() 또는 ftl_read()가 호출되기 전에
@@ -46,9 +48,4 @@ void ftl_print()
 {
 
 	return;
-}
-
-int main(int argc, char *argv[]) {
-
-	exit(0);
 }
