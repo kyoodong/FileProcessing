@@ -6,11 +6,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <memory.h>
 #include <sys/types.h>
 #include "sectormap.h"
 // 필요한 경우 헤더 파일을 추가하시오.
 
-FILE *flashfp;
+extern FILE *flashfp;
+
+int addressMappingTable[SECTORS_PER_PAGE * PAGES_PER_BLOCK * BLOCKS_PER_DEVICE];
+int freeBlock;
 
 //
 // flash memory를 처음 사용할 때 필요한 초기화 작업, 예를 들면 address mapping table에 대한
@@ -23,7 +27,8 @@ void ftl_open()
 	// address mapping table 초기화
 	// free block's pbn 초기화
     	// address mapping table에서 lbn 수는 DATABLKS_PER_DEVICE 동일
-	
+	memset(addressMappingTable, -1, sizeof(addressMappingTable));
+	freeBlock = DATABLKS_PER_DEVICE;
 	return;
 }
 
@@ -46,6 +51,9 @@ void ftl_write(int lsn, char *sectorbuf)
 
 void ftl_print()
 {
-
+	printf("lpn\tppn\n");
+	for (int i = 0; i < sizeof(addressMappingTable) / sizeof(int); i++)
+		printf("%d\t%d\n", i, addressMappingTable[i]);
+	printf("free block's pbn = %d\n", freeBlock);
 	return;
 }
