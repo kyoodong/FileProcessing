@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 	char sectorbuf[SECTOR_SIZE];
 
 	// 파일 생성
-	if ((flashfp = fopen("flashdisk", "w")) == NULL) {
+	if ((flashfp = fopen("flashdisk", "w+")) == NULL) {
 		fprintf(stderr, "flashdisk file open error\n");
 		exit(1);
 	}
@@ -29,6 +29,40 @@ int main(int argc, char *argv[]) {
 	}
 
 	ftl_open();
-	ftl_print();
+
+	for (int i = 0; i < PAGES_PER_BLOCK * DATABLKS_PER_DEVICE; i++) {
+		char buf[SECTOR_SIZE];
+		memset(buf, 0xff, sizeof(buf));
+		ftl_write(0, buf);
+	}
+
+	while (1) {
+		printf(">>> ");
+		char op = getchar();
+
+		if (op == 'p') {
+			ftl_print();
+			getchar();
+			continue;
+		}
+
+		int lsn;
+		char buffer[SECTOR_SIZE];
+		memset(buffer, 0xff, sizeof(buffer));
+		scanf("%d", &lsn);
+		if (op == 'r') {
+			ftl_read(lsn, buffer);
+			for (int i = 0; i < sizeof(buffer); i++) {
+				if (buffer[i] == -1)
+					break;
+				printf("%c", buffer[i]);
+			}
+		}
+		else {
+			scanf("%s", buffer);
+			ftl_write(lsn, buffer);
+		}
+		getchar();
+	}
 	exit(0);
 }
