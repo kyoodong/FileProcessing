@@ -12,6 +12,7 @@ FILE *flashfp;
 
 int main(int argc, char *argv[]) {
 	char pagebuf[PAGE_SIZE];
+	char sectorbuf[SECTOR_SIZE];
 
 	// 파일 생성
 	if ((flashfp = fopen("flashdisk", "w")) == NULL) {
@@ -23,7 +24,7 @@ int main(int argc, char *argv[]) {
 
 	for (int i = 0; i < BLOCKS_PER_DEVICE; i++) {
 		for (int j = 0; j < PAGES_PER_BLOCK; j++) {
-			fwrite(pagebuf, 1, sizeof(pagebuf), flashfp);
+			fwrite(pagebuf, sizeof(pagebuf), 1, flashfp);
 		}
 	}
 

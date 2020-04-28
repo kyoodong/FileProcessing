@@ -38,7 +38,12 @@ void ftl_open()
 //
 void ftl_read(int lsn, char *sectorbuf)
 {
+	int psn = addressMappingTable[lsn];
+	if (psn == -1)
+		return;
 
+	fseek(flashfp, psn * PAGE_SIZE, SEEK_SET);
+	fread(sectorbuf, SECTOR_SIZE, 1, flashfp);
 	return;
 }
 
