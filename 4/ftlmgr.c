@@ -93,12 +93,50 @@ void ftl_read(int lsn, char *sectorbuf)
 {
 	char pagebuf[PAGE_SIZE];
 	int psn = addressMappingTable[lsn];
+
 	if (psn == -1)
 		return;
 
 	dd_read(psn, pagebuf);
 	memcpy(sectorbuf, pagebuf, SECTOR_SIZE);
 	return;
+}
+
+Page* freeGarbageBlock() {
+	Page *garbageBlock = garbageBlockList.next;
+	char buffer[PAGE_SIZE];
+	SpareData spareData;
+
+	if (garbageBlock == NULL)
+		return NULL;
+
+	for (int i = 0; i < PAGES_PER_BLOCK; i++) {
+		int fIndex = freeBlock * PAGES_PER_BLOCK + i;
+		int bIndex = garbageBlock->num * PAGES_PER_BLOCK + i;
+
+		dd_read(bIndex, buffer);
+		memcpy(&spareData, buffer + SECTOR_SIZE, sizeof(spareData));
+
+		// addressMappingTable 이 bIndex 를 가리킨다는 것은 garbage 가 아니라는 것
+		if (addressMappingTable[spareData.lpn] == bIndex) {
+			addressMappingTable[spareData.lpn] = fIndex;
+		}
+	
+	 	// garbage 인 경우
+		else {
+			// buffer 를 0xff로 초기화
+			memset(buffer, 0xff, sizeof(buffer));
+
+			// 해당 인덱스를 free page 리스트에 추가
+			insert(&freePageList, fIndex);
+		}
+		dd_write(fIndex, buffer);
+	}
+	freeBlock = garbageBlock->num;
+	dd_erase(garbageBlock->num);
+	delete(garbageBlock);
+
+	return freePageList.next;
 }
 
 void ftl_write(int lsn, char *sectorbuf)
@@ -115,70 +153,48 @@ void ftl_write(int lsn, char *sectorbuf)
 
 	// pagebuf 에 데이터 세팅
 	memcpy(pagebuf, sectorbuf, SECTOR_SIZE);
+	memset(&spareData, 0xff, sizeof(spareData));
 	spareData.lpn = lsn;
 	spareData.is_invalid = FALSE;
 	memcpy(pagebuf + SECTOR_SIZE, &spareData, sizeof(spareData));
 	
 	// 가용 페이지가 없는 경우
 	if (freePage == NULL) {
-		// 가비지 페이지 마저 없는 경우 (모든 페이지를 사용중)
-		// 이럴 때는 어쩔 수 없이 우회적 덮어쓰기를 함
-		if (garbageBlock == NULL) {
+		freePage = freeGarbageBlock();
+
+		// 가비지 블록 마저 없는 경우 (모든 페이지를 사용중)
+		if (freePage == NULL) {
+			// 우회적 overwrite 보다 free block 에 수정된 데이터 블럭을 써버리고
+		    // 기존 블럭을 지우는게 더 빠름
 			block = addressMappingTable[lsn] / PAGES_PER_BLOCK;
-			for (int i = 0; i < PAGES_PER_BLOCK; i++) {
-				int fIndex = freeBlock * PAGES_PER_BLOCK + i;
-				int bIndex = block * PAGES_PER_BLOCK + i;
-				if (bIndex == addressMappingTable[lsn])
-					continue;
-				dd_read(bIndex, buffer);
-				dd_write(fIndex, buffer);
-			}
-			dd_erase(block);
 
 			for (int i = 0; i < PAGES_PER_BLOCK; i++) {
 				int fIndex = freeBlock * PAGES_PER_BLOCK + i;
 				int bIndex = block * PAGES_PER_BLOCK + i;
+
 				if (bIndex == addressMappingTable[lsn]) {
-					dd_write(bIndex, pagebuf);
+					dd_write(fIndex, pagebuf);
+					addressMappingTable[lsn] = fIndex;
 					continue;
 				}
-				dd_read(fIndex, buffer);
-				dd_write(bIndex, buffer);
-			}
 
-			dd_erase(freeBlock);
-			return;
-		}
-
-		// free block
-		block = garbageBlock->num;
-		for (int i = 0; i < PAGES_PER_BLOCK; i++) {
-			int fIndex = freeBlock * PAGES_PER_BLOCK + i;
-			int bIndex = block * PAGES_PER_BLOCK + i;
-			if (bIndex == garbageBlock->num) {
-				dd_write(fIndex, pagebuf);
-				addressMappingTable[lsn] = fIndex;
-				continue;
-			}
-			dd_read(bIndex, buffer);
-			memcpy(&spareData, buffer + SECTOR_SIZE, sizeof(spareData));
-			if (addressMappingTable[spareData.lpn] == bIndex) {
+				dd_read(bIndex, buffer);
+				memcpy(&spareData, buffer + SECTOR_SIZE, sizeof(spareData));
 				addressMappingTable[spareData.lpn] = fIndex;
 				dd_write(fIndex, buffer);
 			}
-		}
-		dd_erase(block);
 
-		delete(garbageBlock);
-		freeBlock = block;
-		return;
+			dd_erase(block);
+			freeBlock = block;
+			return;
+		}
 	}
 
 	// overwrite 하는 경우
 	// 기존 ppn을 garbage 로 등록
 	if (addressMappingTable[lsn] != -1) {
 		block = addressMappingTable[lsn] / PAGES_PER_BLOCK;
-		if (!is_exist(&garbageBlockList, block))
+		if (!is_exist(garbageBlockList.next, block))
 			insert(&garbageBlockList, block);
 	}
 
