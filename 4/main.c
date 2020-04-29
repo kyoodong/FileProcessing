@@ -33,7 +33,8 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < PAGES_PER_BLOCK * DATABLKS_PER_DEVICE; i++) {
 		char buf[SECTOR_SIZE];
 		memset(buf, 0xff, sizeof(buf));
-		ftl_write(0, buf);
+		buf[0] = i % ('z' - 'a') + 'a';
+		ftl_write(i, buf);
 	}
 
 	while (1) {
@@ -49,8 +50,8 @@ int main(int argc, char *argv[]) {
 		int lsn;
 		char buffer[SECTOR_SIZE];
 		memset(buffer, 0xff, sizeof(buffer));
-		scanf("%d", &lsn);
 		if (op == 'r') {
+			scanf("%d", &lsn);
 			ftl_read(lsn, buffer);
 			for (int i = 0; i < sizeof(buffer); i++) {
 				if (buffer[i] == -1)
@@ -58,11 +59,19 @@ int main(int argc, char *argv[]) {
 				printf("%c", buffer[i]);
 			}
 		}
-		else {
+		else if (op =='w') {
+			scanf("%d", &lsn);
 			scanf("%s", buffer);
 			ftl_write(lsn, buffer);
 		}
+		else {
+			break;
+		}
 		getchar();
+		/*
+		printf("\n\n");
+		ftl_print();
+		*/
 	}
 	exit(0);
 }

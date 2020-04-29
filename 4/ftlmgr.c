@@ -76,6 +76,15 @@ void ftl_open()
 	return;
 }
 
+void print(Page base) {
+	Page *p = base.next;
+	while (p != NULL) {
+		printf("%d ", p->num);
+		p = p->next;
+	}
+	printf("\n");
+}
+
 //
 // 이 함수를 호출하기 전에 이미 sectorbuf가 가리키는 곳에 512B의 메모리가 할당되어 있어야 한다.
 // 즉, 이 함수에서 메모리를 할당받으면 안된다.
@@ -186,5 +195,9 @@ void ftl_print()
 	for (int i = 0; i < PAGES_PER_BLOCK * DATABLKS_PER_DEVICE; i++)
 		printf("%d\t%d\n", i, addressMappingTable[i]);
 	printf("free block's pbn = %d\n", freeBlock);
+	printf(" garbaageBlockList \n");
+	print(garbageBlockList);
+	printf(" free Page List \n");
+	print(freePageList);
 	return;
 }
