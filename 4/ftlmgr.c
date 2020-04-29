@@ -18,18 +18,18 @@ int dd_write(int ppn, char *pagebuf);
 int dd_erase(int pbn);
 
 typedef struct Page {
-	int ppn;
+	int num;
 	struct Page *next, *prev;
 } Page;
 
 int addressMappingTable[SECTORS_PER_PAGE * PAGES_PER_BLOCK * BLOCKS_PER_DEVICE];
 int freeBlock;
 Page freePageList;
-Page garbagePageList;
+Page garbageBlockList;
 
 void insert(Page *base, int ppn) {
 	Page *p = malloc(sizeof(Page));
-	p->ppn = ppn;
+	p->num = ppn;
 	p->next = base->next;
 	p->prev = base;
 	if (base->next != NULL)
@@ -45,6 +45,16 @@ void delete(Page *page) {
 		page->next->prev = page->prev;
 
 	free(page);
+}
+
+int is_exist(Page *base, int num) {
+	Page *p = base;
+	while (p != NULL) {
+		if (p->num == num)
+			return TRUE;
+		p = p->next;
+	}
+	return FALSE;
 }
 
 //
@@ -86,13 +96,13 @@ void ftl_write(int lsn, char *sectorbuf)
 {
 	char pagebuf[PAGE_SIZE];
 	char buffer[PAGE_SIZE];
-	Page *freePage, *garbagePage;
+	Page *freePage, *garbageBlock;
 	SpareData spareData;
 	int block;
 
 	// 가용 페이지
 	freePage = freePageList.next;
-	garbagePage = garbagePageList.next;
+	garbageBlock = garbageBlockList.next;
 
 	// pagebuf 에 데이터 세팅
 	memcpy(pagebuf, sectorbuf, SECTOR_SIZE);
@@ -104,7 +114,7 @@ void ftl_write(int lsn, char *sectorbuf)
 	if (freePage == NULL) {
 		// 가비지 페이지 마저 없는 경우 (모든 페이지를 사용중)
 		// 이럴 때는 어쩔 수 없이 우회적 덮어쓰기를 함
-		if (garbagePage == NULL) {
+		if (garbageBlock == NULL) {
 			block = addressMappingTable[lsn] / PAGES_PER_BLOCK;
 			for (int i = 0; i < PAGES_PER_BLOCK; i++) {
 				int fIndex = freeBlock * PAGES_PER_BLOCK + i;
@@ -132,25 +142,25 @@ void ftl_write(int lsn, char *sectorbuf)
 		}
 
 		// free block
-		block = garbagePage->ppn / PAGES_PER_BLOCK;
+		block = garbageBlock->num;
 		for (int i = 0; i < PAGES_PER_BLOCK; i++) {
 			int fIndex = freeBlock * PAGES_PER_BLOCK + i;
 			int bIndex = block * PAGES_PER_BLOCK + i;
-			if (bIndex == garbagePage->ppn) {
+			if (bIndex == garbageBlock->num) {
 				dd_write(fIndex, pagebuf);
 				addressMappingTable[lsn] = fIndex;
 				continue;
 			}
 			dd_read(bIndex, buffer);
-			dd_write(fIndex, buffer);
 			memcpy(&spareData, buffer + SECTOR_SIZE, sizeof(spareData));
 			if (addressMappingTable[spareData.lpn] == bIndex) {
 				addressMappingTable[spareData.lpn] = fIndex;
+				dd_write(fIndex, buffer);
 			}
 		}
 		dd_erase(block);
 
-		delete(garbagePage);
+		delete(garbageBlock);
 		freeBlock = block;
 		return;
 	}
@@ -158,12 +168,14 @@ void ftl_write(int lsn, char *sectorbuf)
 	// overwrite 하는 경우
 	// 기존 ppn을 garbage 로 등록
 	if (addressMappingTable[lsn] != -1) {
-		insert(&garbagePageList, addressMappingTable[lsn]);
+		block = addressMappingTable[lsn] / PAGES_PER_BLOCK;
+		if (!is_exist(&garbageBlockList, block))
+			insert(&garbageBlockList, block);
 	}
 
 	// 가용 ppn 을 찾아서
-	dd_write(freePage->ppn, pagebuf);
-	addressMappingTable[lsn] = freePage->ppn;
+	dd_write(freePage->num, pagebuf);
+	addressMappingTable[lsn] = freePage->num;
 	delete(freePage);
 	return;
 }
