@@ -213,9 +213,12 @@ void ftl_print()
 	for (int i = 0; i < PAGES_PER_BLOCK * DATABLKS_PER_DEVICE; i++)
 		printf("%d\t%d\n", i, addressMappingTable[i]);
 	printf("free block's pbn = %d\n", freeBlock);
-	printf(" garbaageBlockList \n");
+
+	/*
+	printf(" garbageBlockList \n");
 	print(garbageBlockList);
 	printf(" free Page List \n");
 	print(freePageList);
+	*/
 	return;
 }
