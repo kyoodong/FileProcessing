@@ -118,18 +118,23 @@ void ftl_read(int lsn, char *sectorbuf)
 }
 
 // garbage 블럭 중 garbage page 를 가용한 상태로 만들어주는 함수
-Page* freeGarbageBlock() {
+Page* freeGarbageBlock(int lsn) {
 	Page *garbageBlock = garbageBlockList.next;
 	char buffer[PAGE_SIZE];
 	SpareData spareData;
+	int block;
 
-	if (garbageBlock == NULL)
-		return NULL;
+	if (garbageBlock == NULL) {
+		block = addressMappingTable[lsn] / PAGES_PER_BLOCK;
+		addressMappingTable[lsn] = -1;
+	}
+	else
+		block = garbageBlock->num;
 
 	// freeBlock 에 garbageBlock 중 유효한 모든 page를 복사
 	for (int i = 0; i < PAGES_PER_BLOCK; i++) {
 		int fIndex = freeBlock * PAGES_PER_BLOCK + i;
-		int bIndex = garbageBlock->num * PAGES_PER_BLOCK + i;
+		int bIndex = block * PAGES_PER_BLOCK + i;
 
 		dd_read(bIndex, buffer);
 		memcpy(&spareData, buffer + SECTOR_SIZE, sizeof(spareData));
@@ -152,9 +157,11 @@ Page* freeGarbageBlock() {
 	}
 
 	// 방금까지 가용 블럭으로 만들고자했던 garbageBlock 이 새로운 free block 이 됨
-	freeBlock = garbageBlock->num;
-	dd_erase(garbageBlock->num);
-	delete(garbageBlock);
+	freeBlock = block;
+	if (garbageBlock != NULL) {
+		dd_erase(garbageBlock->num);
+		delete(garbageBlock);
+	}
 
 	// 새롭게 쓸 수 있게된 페이지를 리턴
 	return freePageList.next;
@@ -182,34 +189,7 @@ void ftl_write(int lsn, char *sectorbuf)
 	// 가용 페이지가 없는 경우
 	if (freePage == NULL) {
 		// 가비지 블럭을 해제하고 유효한 블럭으로 만듦
-		freePage = freeGarbageBlock();
-
-		// 가비지 블록 마저 없는 경우 (모든 페이지를 유효하게 사용중)
-		if (freePage == NULL) {
-			// 우회적 overwrite 보다 free block 에 수정된 데이터 블럭을 써버리고
-		    // 기존 블럭을 지우는게 더 빠름
-			block = addressMappingTable[lsn] / PAGES_PER_BLOCK;
-
-			for (int i = 0; i < PAGES_PER_BLOCK; i++) {
-				int fIndex = freeBlock * PAGES_PER_BLOCK + i;
-				int bIndex = block * PAGES_PER_BLOCK + i;
-
-				if (bIndex == addressMappingTable[lsn]) {
-					dd_write(fIndex, pagebuf);
-					addressMappingTable[lsn] = fIndex;
-					continue;
-				}
-
-				dd_read(bIndex, buffer);
-				memcpy(&spareData, buffer + SECTOR_SIZE, sizeof(spareData));
-				addressMappingTable[spareData.lpn] = fIndex;
-				dd_write(fIndex, buffer);
-			}
-
-			dd_erase(block);
-			freeBlock = block;
-			return;
-		}
+		freePage = freeGarbageBlock(lsn);
 	}
 
 	// overwrite 하는 경우
