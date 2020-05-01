@@ -24,9 +24,15 @@ typedef struct Page {
 
 int addressMappingTable[SECTORS_PER_PAGE * PAGES_PER_BLOCK * BLOCKS_PER_DEVICE];
 int freeBlock;
+
+// 가용 페이지 리스트
+// 가용 블럭 리스트로 구현하면 메모리를 더 아낄 수 있으나 페이지 방식, 블럭 방식 모두 코딩해보기 위함
 Page freePageList;
+
+// 가비지 블럭 리스트
 Page garbageBlockList;
 
+// 링크드 리스트의 base 뒤에 노드를 추가하는 함수
 void insert(Page *base, int ppn) {
 	Page *p = malloc(sizeof(Page));
 	p->num = ppn;
@@ -37,6 +43,7 @@ void insert(Page *base, int ppn) {
 	base->next = p;
 }
 
+// 링크드 리스트에서 page 를 삭제하는 함수
 void delete(Page *page) {
 	if (page->prev != NULL)
 		page->prev->next = page->next;
@@ -47,6 +54,8 @@ void delete(Page *page) {
 	free(page);
 }
 
+// base 링크드 리스트에 값이 num인 노드가 있는지 확인하는 함수
+// garbage page 가 생겼을 때 해당 블럭이 이미 garbage 블럭인지 확인해줌
 int is_exist(Page *base, int num) {
 	Page *p = base;
 	while (p != NULL) {
@@ -64,18 +73,24 @@ int is_exist(Page *base, int num) {
 //
 void ftl_open()
 {
-	//
 	// address mapping table 초기화
 	// free block's pbn 초기화
-    	// address mapping table에서 lbn 수는 DATABLKS_PER_DEVICE 동일
+   	// address mapping table에서 lbn 수는 DATABLKS_PER_DEVICE 동일
+
+	// addressMappingTable 의 모든 값을 -로 초기화
 	memset(addressMappingTable, -1, sizeof(addressMappingTable));
+
+	// freeBlock 을 맨 끝 블럭으로 지정
 	freeBlock = DATABLKS_PER_DEVICE;
+
+	// 최초의 모든 페이지는 가용 페이지이므로 freePageList 에 모든 페이지를 추가
 	for (int i = 0; i < PAGES_PER_BLOCK * DATABLKS_PER_DEVICE; i++) {
 		insert(&freePageList, i);
 	}
 	return;
 }
 
+// 디버깅용 리스트 출력 함수
 void print(Page base) {
 	Page *p = base.next;
 	while (p != NULL) {
@@ -102,6 +117,7 @@ void ftl_read(int lsn, char *sectorbuf)
 	return;
 }
 
+// garbage 블럭 중 garbage page 를 가용한 상태로 만들어주는 함수
 Page* freeGarbageBlock() {
 	Page *garbageBlock = garbageBlockList.next;
 	char buffer[PAGE_SIZE];
@@ -110,6 +126,7 @@ Page* freeGarbageBlock() {
 	if (garbageBlock == NULL)
 		return NULL;
 
+	// freeBlock 에 garbageBlock 중 유효한 모든 page를 복사
 	for (int i = 0; i < PAGES_PER_BLOCK; i++) {
 		int fIndex = freeBlock * PAGES_PER_BLOCK + i;
 		int bIndex = garbageBlock->num * PAGES_PER_BLOCK + i;
@@ -119,6 +136,7 @@ Page* freeGarbageBlock() {
 
 		// addressMappingTable 이 bIndex 를 가리킨다는 것은 garbage 가 아니라는 것
 		if (addressMappingTable[spareData.lpn] == bIndex) {
+			// 새로운 블럭으로 데이터가 옮겨갔으니 맵핑 테이블에도 반영
 			addressMappingTable[spareData.lpn] = fIndex;
 		}
 	
@@ -132,10 +150,13 @@ Page* freeGarbageBlock() {
 		}
 		dd_write(fIndex, buffer);
 	}
+
+	// 방금까지 가용 블럭으로 만들고자했던 garbageBlock 이 새로운 free block 이 됨
 	freeBlock = garbageBlock->num;
 	dd_erase(garbageBlock->num);
 	delete(garbageBlock);
 
+	// 새롭게 쓸 수 있게된 페이지를 리턴
 	return freePageList.next;
 }
 
@@ -160,9 +181,10 @@ void ftl_write(int lsn, char *sectorbuf)
 	
 	// 가용 페이지가 없는 경우
 	if (freePage == NULL) {
+		// 가비지 블럭을 해제하고 유효한 블럭으로 만듦
 		freePage = freeGarbageBlock();
 
-		// 가비지 블록 마저 없는 경우 (모든 페이지를 사용중)
+		// 가비지 블록 마저 없는 경우 (모든 페이지를 유효하게 사용중)
 		if (freePage == NULL) {
 			// 우회적 overwrite 보다 free block 에 수정된 데이터 블럭을 써버리고
 		    // 기존 블럭을 지우는게 더 빠름
