@@ -189,6 +189,8 @@ void ftl_write(int lsn, char *sectorbuf)
 	// 가용 페이지가 없는 경우
 	if (freePage == NULL) {
 		// 가비지 블럭을 해제하고 유효한 블럭으로 만듦
+		// 모든 블럭을 사용 중일 때는 덮어쓰고자 하는 데이터가 있는 블럭을 사용해야하므로
+		// 해당 블럭을 임시 가비지 블럭처럼 사용하여 덮어쓰기를 진행한다.
 		freePage = freeGarbageBlock(lsn);
 	}
 
@@ -200,7 +202,6 @@ void ftl_write(int lsn, char *sectorbuf)
 			insert(&garbageBlockList, block);
 	}
 
-	// 가용 ppn 을 찾아서
 	dd_write(freePage->num, pagebuf);
 	addressMappingTable[lsn] = freePage->num;
 	delete(freePage);
