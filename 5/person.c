@@ -2,6 +2,16 @@
 #include "person.h"
 //필요한 경우 헤더 파일과 함수를 추가할 수 있음
 
+typedef struct Header {
+	int pageNum;
+	int recordNum;
+	int deletedPage;
+	int deletedRecord;
+} Header;
+
+
+
+
 // 과제 설명서대로 구현하는 방식은 각자 다를 수 있지만 약간의 제약을 둡니다.
 // 레코드 파일이 페이지 단위로 저장 관리되기 때문에 사용자 프로그램에서 레코드 파일로부터 데이터를 읽고 쓸 때도
 // 페이지 단위를 사용합니다. 따라서 아래의 두 함수가 필요합니다.
