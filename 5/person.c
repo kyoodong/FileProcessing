@@ -1,6 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <memory.h>
 #include "person.h"
-//필요한 경우 헤더 파일과 함수를 추가할 수 있음
 
 typedef struct Header {
 	int pageNum;
@@ -24,7 +25,8 @@ typedef struct Header {
 //
 void readPage(FILE *fp, char *pagebuf, int pagenum)
 {
-
+	fseek(fp, PAGE_SIZE * pagenum, SEEK_SET); 
+	fread(pagebuf, PAGE_SIZE, 1, fp);
 }
 
 //
@@ -32,7 +34,8 @@ void readPage(FILE *fp, char *pagebuf, int pagenum)
 //
 void writePage(FILE *fp, const char *pagebuf, int pagenum)
 {
-
+	fseek(fp, PAGE_SIZE * pagenum, SEEK_SET);
+	fwrite(pagebuf, PAGE_SIZE, 1, fp);
 }
 
 //
@@ -44,7 +47,8 @@ void writePage(FILE *fp, const char *pagebuf, int pagenum)
 // 
 void pack(char *recordbuf, const Person *p)
 {
-
+	memset(recordbuf, 0, RECORD_SIZE);
+	sprintf(recordbuf, "%s#%s#%s#%s#%s#%s#", p->sn, p->name, p->age, p->addr, p->phone, p->email);
 }
 
 // 
@@ -53,7 +57,7 @@ void pack(char *recordbuf, const Person *p)
 //
 void unpack(const char *recordbuf, Person *p)
 {
-
+	sscanf(recordbuf, "%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#", p->sn, p->name, p->age, p->addr, p->phone, p->email);
 }
 
 //
@@ -61,7 +65,90 @@ void unpack(const char *recordbuf, Person *p)
 //
 void insert(FILE *fp, const Person *p)
 {
+	char recordbuf[RECORD_SIZE];
+	char headerPagebuf[PAGE_SIZE];
+	char pagebuf[PAGE_SIZE];
+	char *cp;
+	Header *header;
+	int recordPerPage;
+	int recordNum;
 
+	// 삭제 레코드가 있는지 확인
+	memset(headerPagebuf, 0, sizeof(headerPagebuf));
+	readPage(fp, headerPagebuf, 0);
+	header = (Header *) headerPagebuf;
+
+	// 최초로 파일이 생성된 경우
+	if (header->pageNum == 0) {
+		// 헤더 갱신
+		header->pageNum = 1;
+		header->recordNum = 1;
+		header->deletedPage = -1;
+		header->deletedRecord = -1;
+		pageWrite(fp, headerPagebuf, 0);
+
+		// 레코드 추가
+		memset(pagebuf, 0, sizeof(pagebuf));
+		pack(pagebuf, p);
+		pageWrite(fp, pagebuf, 1);
+	}
+
+	// 삭제 레코드가 없는 경우
+	if (header->deletedPage == -1 && header->deletedRecord == -1) {
+		recordPerPage = PAGE_SIZE / RECORD_SIZE;
+
+		// 마지막 페이지에 남은 자리가 있는 경우
+		if (header->recordNum < header->pagenum * recordPerPage) {
+			pageRead(fp, pagebuf, header->pageNum);
+			recordNum = header->recordNum % recordPerPage;
+			cp = pagebuf + RECORD_SIZE * recordNum;
+
+			pack(cp, p);
+			pageWrite(fp, pagebuf, header->pageNum);
+
+			// 헤더 갱신
+			header->recordNum++;
+			pageWrite(fp, headerPagebuf, 0);
+		}
+
+		// 페이지에 남은 자리가 없어서 새로운 페이지를 만들어야되는 경우
+		else {
+			memset(pagebuf, 0, sizeof(pagebuf));
+			pack(pagebuf, p);
+			pageWrite(fp, pagebuf, recordPage + 1);
+
+			// 헤더 갱신
+			header->pageNum++;
+			header->recordNum++;
+			pageWrite(fp, headerPagebuf, 0);
+		}
+	}
+
+	// 삭제 레코드가 있는 경우
+	else {
+		readPage(fp, pagebuf, header->deletedPage);
+		cp = pagebuf;
+		cp += RECORD_SIZE * header->deletedRecord;
+
+		if (*cp != '*') {
+			printf("error\n");
+			return;
+		}
+
+		cp++;
+		
+		// header 에 갱신될 새로운 데이터
+		sscanf(cp, "%d%d", &header->deletedPage, &header->deletedRecord);
+
+		cp--;
+
+		// pagebuf의 deletedRecord번째 데이터에 패킹 후 저장
+		pack(cp, p);
+		writePage(pagebuf);
+
+		// 해더 갱신
+		writePage(headerPagebuf);
+	}
 }
 
 //
@@ -75,7 +162,6 @@ void delete(FILE *fp, const char *sn)
 int main(int argc, char *argv[])
 {
 	FILE *fp;  // 레코드 파일의 파일 포인터
-
-
+	fp = fopen(argv[1], "a+");
 	return 1;
 }
