@@ -71,6 +71,7 @@ void insert(FILE *fp, const Person *p)
 	char headerPagebuf[PAGE_SIZE];
 	char pagebuf[PAGE_SIZE];
 	char *cp;
+	int *meta;
 	Header *header;
 	int recordPerPage;
 	int recordNum;
@@ -131,6 +132,8 @@ void insert(FILE *fp, const Person *p)
 	// 삭제 레코드가 있는 경우
 	else {
 		readPage(fp, pagebuf, header->deletedPage);
+		int page = header->deletedPage;
+
 		cp = pagebuf;
 		cp += RECORD_SIZE * header->deletedRecord;
 
@@ -140,15 +143,18 @@ void insert(FILE *fp, const Person *p)
 		}
 
 		cp++;
+		meta = (int *) cp;
 		
 		// header 에 갱신될 새로운 데이터
-		sscanf(cp, "%d%d", &header->deletedPage, &header->deletedRecord);
+		header->deletedPage = *meta++;
+		header->deletedRecord = *meta;
 
+		// 데이터 추출을 마쳤으니 cp 에 데이터 패킹
 		cp--;
 
 		// pagebuf의 deletedRecord번째 데이터에 패킹 후 저장
 		pack(cp, p);
-		writePage(fp, pagebuf, header->deletedPage);
+		writePage(fp, pagebuf, page);
 
 		// 해더 갱신
 		writePage(fp, headerPagebuf, 0);
