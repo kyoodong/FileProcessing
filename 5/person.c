@@ -27,7 +27,7 @@ typedef struct Header {
 //
 void readPage(FILE *fp, char *pagebuf, int pagenum)
 {
-	fseek(fp, PAGE_SIZE * pagenum, SEEK_SET); 
+	fseek(fp, PAGE_SIZE * pagenum, SEEK_SET);
 	fread(pagebuf, PAGE_SIZE, 1, fp);
 }
 
@@ -49,8 +49,9 @@ void writePage(FILE *fp, const char *pagebuf, int pagenum)
 // 
 void pack(char *recordbuf, const Person *p)
 {
-	memset(recordbuf, 0, RECORD_SIZE);
-	sprintf(recordbuf, "%s#%s#%s#%s#%s#%s#", p->sn, p->name, p->age, p->addr, p->phone, p->email);
+	memset(recordbuf, 0xff, RECORD_SIZE);
+	sprintf(recordbuf, "%s#%s#%s#%s#%s#%s", p->sn, p->name, p->age, p->addr, p->phone, p->email);
+	recordbuf[strlen(recordbuf)] = '#';
 }
 
 // 
@@ -59,7 +60,10 @@ void pack(char *recordbuf, const Person *p)
 //
 void unpack(const char *recordbuf, Person *p)
 {
-	sscanf(recordbuf, "%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#", p->sn, p->name, p->age, p->addr, p->phone, p->email);
+	if (recordbuf[0] == -1 || recordbuf[0] == '*')
+		return;
+
+	sscanf(recordbuf, "%[^#]#%[^#]#%[^#]#%[^#]#%[^#]#%[^#]", p->sn, p->name, p->age, p->addr, p->phone, p->email);
 }
 
 //
@@ -77,7 +81,7 @@ void insert(FILE *fp, const Person *p)
 	int recordNum;
 
 	// 삭제 레코드가 있는지 확인
-	memset(headerPagebuf, 0, sizeof(headerPagebuf));
+	memset(headerPagebuf, 0xff, sizeof(headerPagebuf));
 	readPage(fp, headerPagebuf, 0);
 	header = (Header *) headerPagebuf;
 
@@ -91,7 +95,7 @@ void insert(FILE *fp, const Person *p)
 		writePage(fp, headerPagebuf, 0);
 
 		// 레코드 추가
-		memset(pagebuf, 0, sizeof(pagebuf));
+		memset(pagebuf, 0xff, sizeof(pagebuf));
 		pack(pagebuf, p);
 		writePage(fp, pagebuf, 1);
 		return;
@@ -118,7 +122,7 @@ void insert(FILE *fp, const Person *p)
 
 		// 페이지에 남은 자리가 없어서 새로운 페이지를 만들어야되는 경우
 		else {
-			memset(pagebuf, 0, sizeof(pagebuf));
+			memset(pagebuf, 0xff, sizeof(pagebuf));
 			pack(pagebuf, p);
 			writePage(fp, pagebuf, header->pageNum + 1);
 
@@ -174,18 +178,20 @@ void delete(FILE *fp, const char *sn)
 	int *meta;
 	Person person;
 
+	memset(headerPagebuf, 0xff, sizeof(headerPagebuf));
 	readPage(fp, headerPagebuf, 0);
 	header = (Header *) headerPagebuf;
 
 	recordPerPage = PAGE_SIZE / RECORD_SIZE;
 	for (int i = 1; i <= header->pageNum; i++) {
 		readPage(fp, pagebuf, i);
+
 		for (int j = 0; j < recordPerPage; j++) {
 			record = pagebuf + j * RECORD_SIZE;
 			unpack(record, &person);
 
+			//printf("headerPagenum = %d\ni = %d\nj = %d\n%s\n%s\n",header->pageNum, i, j, person.sn, sn);
 			// 같은 주민번호를 발견
-			//printf("i = %d\nj = %d\n%s\n%s\n", i, j, person.sn, sn);
 			if (!strcmp(person.sn, sn)) {
 				*record++ = '*';
 				meta = (int *) record;
@@ -220,13 +226,18 @@ int main(int argc, char *argv[])
 	Person person;
 	fp = fopen(argv[2], "r+");
 	if (fp == NULL) {
-		fp = fopen(argv[2], "w");
+		fp = fopen(argv[2], "w+");
 	}
 
 	// 삽입
 	if (argv[1][0] == 'i') {
 		if (argc < 9) {
 			printf("usage : a.out i filename sn name age addr phone email\n");
+			return 1;
+		}
+
+		if (strlen(argv[3]) >= 14 || strlen(argv[4]) >= 18 || strlen(argv[5]) >= 4 || strlen(argv[6]) >= 22 || strlen(argv[7]) >= 16 || strlen(argv[8]) >= 26) {
+			printf("Too long data error\n");
 			return 1;
 		}
 
@@ -254,6 +265,5 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	
 	return 0;
 }
