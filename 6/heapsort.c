@@ -48,12 +48,13 @@ void unpack(Person *p, char *record) {
 	memcpy(buf, record, RECORD_SIZE);
 	memset(p, 0, sizeof(Person));
 	
-	cp = strtok(buf, "#");
-	if (cp == NULL) {
+	cp = strchr(buf, '#');
+	if (cp == NULL || buf[0] == '*') {
 		p->sn[0] = '*';
 		return;
 	}
 
+	cp = strtok(buf, "#");
 	strcpy(p->sn, cp);
 	strcpy(p->name, strtok(NULL, "#"));
 	strcpy(p->age, strtok(NULL, "#"));
@@ -159,6 +160,8 @@ void pop(char **heaparray) {
 		memcpy(buf, heaparray[current], RECORD_SIZE);
 		memcpy(heaparray[current], heaparray[min_child], RECORD_SIZE);
 		memcpy(heaparray[min_child], buf, RECORD_SIZE);
+
+		current = min_child;
 	}
 }
 
@@ -187,15 +190,12 @@ void makeSortedFile(FILE *outputfp, char **heaparray)
 
 	while (heap_size) {
 		cp = buf;
+		memset(buf, 0xff, sizeof(buf));
 
 		for (int i = 0; i < record_per_page && heap_size; i++) {
-			cp = stpcpy(cp, heaparray[1]);
+			strcpy(cp, heaparray[1]);
 			pop(heaparray);
-		}
-
-		while (cp < buf + PAGE_SIZE) {
-			*cp = 0xff;
-			cp++;
+			cp += RECORD_SIZE;
 		}
 
 		writePage(outputfp, buf, num);
@@ -208,6 +208,7 @@ int main(int argc, char *argv[])
 	FILE *inputfp;	// 입력 레코드 파일의 파일 포인터
 	FILE *outputfp;	// 정렬된 레코드 파일의 파일 포인터
 	char buf[PAGE_SIZE];
+	int record_per_page = PAGE_SIZE / RECORD_SIZE;
 
 	if (argc != 4)
 		return -1;
@@ -226,16 +227,19 @@ int main(int argc, char *argv[])
 
 	ip++;
 	record_num = *ip;
-	char **heaparray = calloc(page_num, sizeof(char *));
+	char **heaparray = calloc(page_num * record_per_page, sizeof(char *));
 
 	buildHeap(inputfp, heaparray);
-	Person *p = malloc(sizeof(Person));
+	/*
+	Person p;
 	for (int i = 1; i <= heap_size; i++) {
 		if (heaparray[i] == NULL)
 			break;
 
-		unpack(p, heaparray[i]); 
+		unpack(&p, heaparray[i]); 
+		printf("%s\n", p.sn);
 	}
+	*/
 
 	makeSortedFile(outputfp, heaparray);
 
