@@ -82,6 +82,7 @@ void buildHeap(FILE *inputfp, char **heaparray)
 	int parent, current;
 	int count = 0;
 	heap_size = 0;
+	int sn1, sn2;
 
 	for (int index = 1; index < page_num; index++) {
 		readPage(inputfp, buf, index);
@@ -105,7 +106,10 @@ void buildHeap(FILE *inputfp, char **heaparray)
 				unpack(&p, heaparray[current]);
 				unpack(&p2, heaparray[parent]);
 
-				if (strcmp(p.sn, p2.sn) < 0) {
+				sn1 = atoi(p.sn);
+				sn2 = atoi(p2.sn);
+
+				if (sn1 < sn2) {
 					memcpy(record_buf, heaparray[current], RECORD_SIZE);
 					memcpy(heaparray[current], heaparray[parent], RECORD_SIZE);
 					memcpy(heaparray[parent], record_buf, RECORD_SIZE);
@@ -125,6 +129,7 @@ void pop(char **heaparray) {
 	int current, left_child, right_child, min_child;
 	Person p1, p2;
 	char buf[RECORD_SIZE];
+	int sn1, sn2;
 
 	current = 1;
 	memcpy(heaparray[1], heaparray[heap_size], RECORD_SIZE);
@@ -141,8 +146,11 @@ void pop(char **heaparray) {
 			unpack(&p1, heaparray[left_child]);
 			unpack(&p2, heaparray[right_child]);
 
+			sn1 = atoi(p1.sn);
+			sn2 = atoi(p2.sn);
+
 			// left가 더 작음
-			if (strcmp(p1.sn, p2.sn) < 0) {
+			if (sn1 < sn2) {
 				min_child = left_child;
 			} else {
 				min_child = right_child;
@@ -154,7 +162,10 @@ void pop(char **heaparray) {
 		unpack(&p1, heaparray[current]);
 		unpack(&p2, heaparray[min_child]);
 
-		if (strcmp(p1.sn, p2.sn) < 0)
+		sn1 = atoi(p1.sn);
+		sn2 = atoi(p2.sn);
+
+		if (sn1 < sn2)
 			break;
 
 		memcpy(buf, heaparray[current], RECORD_SIZE);
